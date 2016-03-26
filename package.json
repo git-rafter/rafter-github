@@ -1,0 +1,39 @@
+{
+  "name": "rafter-github",
+  "version": "1.0.0",
+  "description": "Rafter extension for github",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/gulp/bin/gulp.js test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/git-rafter/rafter-github.git"
+  },
+  "keywords": [
+    "rafter",
+    "github"
+  ],
+  "author": "Nick Harris",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/git-rafter/rafter-github/issues"
+  },
+  "homepage": "https://github.com/git-rafter/rafter-github#readme",
+  "dependencies": {
+    "bluebird": "^3.3.4",
+    "lodash": "^4.6.1",
+    "restify": "^4.0.4"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "gulp": "^3.9.1",
+    "gulp-jshint": "^2.0.0",
+    "gulp-mocha": "^2.2.0",
+    "jshint": "^2.9.1",
+    "jshint-stylish": "^2.1.0",
+    "mocha": "^2.4.5",
+    "mocha-sinon": "^1.1.5",
+    "sinon": "^1.17.3"
+  }
+}

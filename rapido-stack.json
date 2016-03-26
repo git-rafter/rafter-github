@@ -1,0 +1,10 @@
+{
+    "name": "github",
+    "description": "Github Commands",
+    "commands": {
+        "init github": {
+            "description": "Init github org",
+            "file": "commands/init-github.js"
+        }
+    }
+}
