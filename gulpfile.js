@@ -4,6 +4,7 @@
         jshint = require('gulp-jshint'),
         gutil = require('gulp-util'),
         lodash = require('lodash'),
+        runSequence = require('run-sequence'),
         paths = {
             scripts: ['commands/**/*.js'],
             tests: ['test/**/*.spec.js']
@@ -14,6 +15,8 @@
         global.expect = require('chai').expect;
         global.sinon = require('sinon');
         global.path = require('path');
+        require('chai').use(require('chai-as-promised'));
+        // global.chai.use(require('chai-as-promised'));
 
         return gulp.src(paths.tests, {read: false})
             .pipe(mocha({
@@ -28,7 +31,9 @@
             .pipe(jshint.reporter('jshint-stylish'));
     });
 
-    gulp.task('test', ['lint', 'mocha']);
+    gulp.task('test', function(done){
+      runSequence('lint', 'mocha', done);
+    });
 
     gulp.task('default', ['test']);
 })();

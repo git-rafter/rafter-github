@@ -5,10 +5,15 @@ var Promise = require('bluebird');
 
 var GITHUB_URL = 'https://api.github.com';
 
-module.exports = {
-  usage: 'Usage: $0 init github',
+module.exports = (function(){
+  return new InitGithubCommand();
+})();
 
-  options: {
+module.exports.InitGithubCommand = InitGithubCommand;
+
+function InitGithubCommand(){
+  this.usage = 'Usage: $0 init github';
+  this.options = {
     'org': {
       describe: 'Organization',
       alias: 'o'
@@ -25,118 +30,131 @@ module.exports = {
       description: 'Accept default values',
       alias: 'y'
     }
-  },
+  };
 
-  validate: function(args, rapido) {
+}
 
-    return {
-      org: args.org,
-      url: args.url,
-      token: args.token
-    };
-  },
-
-  run: function(args, config, rapido) {
-    return new Promise(function(resolve, reject) {
-      var promptProps = createPrompt(args);
-
-      promptUser(promptProps, args).then(function(options) {
-        var httpOptions = {
-          url: options.url
-        };
-        if (options.token) {
-          httpOptions.headers = {
-            "Authorization": options.token + " OAUTH-TOKEN"
-          };
-        }
-        var client = restify.createJsonClient({
-          url: options.url
-        });
-        client.get(path.join('/orgs', options.org, 'repos'), function(err, req, res, obj) {
-          if (err) {
-            rapido.log.error(err);
-            return reject(err);
-          }
-
-          var projects = res.body;
-          var dependencies = [];
-          projects.forEach(function(repo) {
-            var git_url;
-            for (var key in repo) {
-              if (repo[key] && repo[key].constructor === String && repo[key].match(/git@.*:.*.git/i)) {
-                git_url = repo[key];
-                break;
-              }
-            }
-
-            var name = repo.name.replace(' ', '_');
-            var description = repo.description;
-            dependencies.push({
-              name: name,
-              description: description,
-              url: git_url
-            });
-          });
-
-          rapido.updateConfig({
-            dependencies: dependencies,
-            github: {
-              url: options.url,
-              org: options.org,
-              token: options.token
-            }
-          });
-
-          if (dependencies.length > 0) {
-            rapido.log.success('Successfully loaded ' + _.map(dependencies, 'name').join(', '));
-          } else {
-            rapido.log.info('No repositories found');
-          }
-          resolve(undefined);
-        });
-      })
-      .catch(function(err) {
-        rapido.log.error(err);
-        reject(err);
-      });
-    });
-  }
+InitGithubCommand.prototype.validate = function(args, rapido) {
+  return {
+    org: args.org,
+    url: args.url,
+    token: args.token
+  };
 };
 
-function promptUser(properties, args) {
+InitGithubCommand.prototype.run = function(args, config, rapido) {
   return new Promise(function(resolve, reject) {
-    if (!_.isEmpty(promptProps.properties) && !(args.yes && args.token)) {
+    var promptProps = this._createPrompt(args);
+
+    this._getOptions(promptProps, args, rapido).then(function(options) {
+      var httpOptions = {
+        url: options.url
+      };
+      if (options.token) {
+        httpOptions.headers = {
+          "Authorization": "token " + options.token
+        };
+      }
+      var client = restify.createJsonClient(httpOptions);
+
+      return this._getOrgRepos(client);
+    })
+    .then(function(dependencies){
+      return this._updateConfig(options, dependencies, rapido);
+    })
+    .catch(function(err) {
+      rapido.log.error(err);
+      reject(err);
+    });
+  });
+};
+
+InitGithubCommand.prototype._updateConfig = function(options, dependencies, rapido){
+  return new Promise(function(resolve, reject){
+    rapido.updateConfig({
+      dependencies: dependencies,
+      github: {
+        url: options.url,
+        org: options.org,
+        token: options.token
+      }
+    });
+
+    if (dependencies.length > 0) {
+      rapido.log.success('Successfully loaded ' + _.map(dependencies, 'name').join(', '));
+    } else {
+      rapido.log.info('No repositories found');
+    }
+    resolve(undefined);
+  });
+};
+
+InitGithubCommand.prototype._getOrgRepos = function(client){
+  return new Promise(function(resolve, reject){
+    client.get(path.join('/orgs', options.org, 'repos'), function(err, req, res, projects) {
+      if (err) return reject(err);
+
+      var dependencies = [];
+      projects.forEach(function(repo) {
+        var git_url;
+        for (var key in repo) {
+          if (repo[key] && repo[key].constructor === String && repo[key].match(/git@.*:.*.git/i)) {
+            git_url = repo[key];
+            break;
+          }
+        }
+
+        var name = repo.name.replace(' ', '_');
+        var description = repo.description;
+        dependencies.push({
+          name: name,
+          description: description,
+          url: git_url
+        });
+      });
+
+      resolve(dependencies);
+    });
+  });
+};
+
+InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
+  return new Promise(function(resolve, reject) {
+    if (!_.isEmpty(properties) && !(args.yes && args.token)) {
       var prompt = rapido.prompt;
       prompt.start();
       var promptGet = Promise.promisify(prompt.get);
-      promptGet(promptProps).then(function(result) {
-          args.url = args.url || result.url || GITHUB_URL;
-          args.org = args.org || result.org;
-          return getToken();
-        })
-        .then(function(token) {
-          args.token = token;
-          resolve(args);
-        })
-        .catch(function(err) {
-          reject(err);
-        });
+      promptGet(properties).then(function(result) {
+        args.url = args.url || result.url || GITHUB_URL;
+        args.org = args.org || result.org;
+        var client;
+        if(result.username && result.password && !args.token) {
+          client = restify.createJsonClient({
+            url: args.url,
+            headers: {
+              'auth': result.username + ':' + password
+            }
+          });
+        }
+        return this._getToken(args, client);
+      })
+      .then(function(token) {
+        args.token = token;
+        resolve(args);
+      })
+      .catch(function(err) {
+        reject(err);
+      });
     } else {
       args.url = args.url || GITHUB_URL;
       resolve(args);
     }
   });
-}
+};
 
-function getToken(args) {
+InitGithubCommand.prototype._getToken = function(args, client) {
   return new Promise(function(resolve, reject) {
-    if (!args.token && result.username && result.password) {
-      var client = restify.createJsonClient({
-        url: args.url,
-        headers: {
-          'auth': result.username + ':' + result.password
-        }
-      });
+    if (client) {
       var note = "rafter";
       note = (args.org ? note + "-" + args.org : note);
       client.post('/authorizations', {
@@ -150,9 +168,9 @@ function getToken(args) {
       resolve(args.token);
     }
   });
-}
+};
 
-function createPrompt(args) {
+InitGithubCommand.prototype._createPrompt = function(args) {
   var promptProps = {
     properties: {}
   };
@@ -186,4 +204,4 @@ function createPrompt(args) {
   }
 
   return promptProps;
-}
+};
