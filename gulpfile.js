@@ -13,9 +13,12 @@
     // Test Tasks
     gulp.task('mocha', function(){
         global.expect = require('chai').expect;
+        global.assert = require('chai').assert;
         global.sinon = require('sinon');
         global.path = require('path');
         require('chai').use(require('chai-as-promised'));
+        require('chai').use(require('sinon-chai'));
+        require('sinon-as-promised');
         // global.chai.use(require('chai-as-promised'));
 
         return gulp.src(paths.tests, {read: false})

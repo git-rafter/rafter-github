@@ -1,29 +1,13 @@
+var restify = require('restify');
+
 describe("init-gulp", function(){
   var subject = require('../../commands/init-github'),
       nock = require('nock');
-      // mRapido,
-      // server,
-      // expectedDependencies,
-      // expectedUrl,
-      // expectedOrg,
-      // expectedToken,
-      // expectedConfig = {
-      //   depenencies: expectedDependencies,
-      //   github: {
-      //     url: expectedUrl,
-      //     org: expectedOrg,
-      //     token: expectedToken
-      //   }
-      // };
 
   beforeEach(function(){
-    // mRapido = sinon.mock();
-    // server = sinon.stub(require('restify'), 'createJsonClient');
   });
 
   afterEach(function(){
-    // server.restore();
-    // mRapido.restore();
   });
 
   // describe("#run()", function(){
@@ -45,11 +29,135 @@ describe("init-gulp", function(){
   //   });
   // });
 
-  describe('#_updateConfig', function(){
-    it("should update config", function(){
-      
+  describe('#_updateConfig()', function(){
+    var sRapido;
+    beforeEach(function(){
+      sRapido = {
+        updateConfig: sinon.spy(),
+        log: {
+          success: sinon.spy(),
+          info: sinon.spy()
+        }
+      };
+    });
+
+    it("should update config", function(done){
+      var options = {
+        url: 'myurl',
+        org: 'myorg',
+        token: 'mytoken'
+      };
+      var dependencies = [{
+        url: 'giturl'
+      }];
+
+      return subject._updateConfig(options, dependencies, sRapido).then(function(){
+        sRapido.updateConfig.should.have.been.calledOnce;
+        sRapido.log.success.should.have.been.calledOnce;
+        done();
+      });
+    });
+
+    it("should update config with no repositories", function(done){
+      var options = {
+        url: 'myurl',
+        org: 'myorg',
+        token: 'mytoken'
+      };
+      var dependencies = [];
+
+      return subject._updateConfig(options, dependencies, sRapido).then(function(){
+        sRapido.updateConfig.should.have.been.calledOnce;
+        sRapido.log.info.should.have.been.calledOnce;
+        done();
+      });
     });
   });
+
+  describe('#_getOrgsRepos()', function(){
+    var sClient;
+    beforeEach(function(){
+      sClient = {
+        get: sinon.stub()
+      };
+    });
+
+    it('should get org repos', function(){
+      var projects = [
+        {ssh_url: 'git@example.com:myorg/repo.git', description: 'my repo description', name: 'My Repo'}
+      ];
+
+      sClient.get.yields(undefined, undefined, undefined, projects);
+      return subject._getOrgRepos(sClient, 'myorg').then(function(dependencies){
+        expect(dependencies).to.exist;
+        dependencies.should.have.lengthOf(1);
+        expect(dependencies[0]).to.have.property('url', 'git@example.com:myorg/repo.git');
+      });
+    });
+
+    it('should throw InternalServerError', function(){
+      var projects = [
+        {ssh_url: 'git@example.com:myorg/repo.git', description: 'my repo description', name: 'My Repo'}
+      ];
+
+      sClient.get.yields(new restify.InternalServerError('useless error message'));
+      return subject._getOrgRepos(sClient, 'myorg').should.be.rejectedWith(restify.InternalServerError);
+    });
+
+    it('should reject invalid project data', function(){
+      var projects = 'invalid response';
+
+      sClient.get.yields(undefined, undefined, undefined, projects);
+      return subject._getOrgRepos(sClient, 'myorg').should.be.rejectedWith(Error);
+    });
+  });
+
+  // describe('#_getOptions()', function(){
+  //   var sRapido;
+  //   beforeEach(function(){
+  //     sRapido = {
+  //       prompt: {
+  //         start: sinon.spy(),
+  //         get: sinon.stub()
+  //       }
+  //     };
+  //
+  //   });
+  //
+  //   afterEach(function(){
+  //
+  //   });
+  //
+  //   it('should resolve prompt options with url and org args', function(done){
+  //     var args = {
+  //       url: 'myurl',
+  //       org: 'myorg'
+  //     };
+  //
+  //     var properties = {
+  //       username: {},
+  //       password: {}
+  //     };
+  //
+  //     var promptResult = {
+  //       username: 'username',
+  //       password: 'password'
+  //     };
+  //
+  //     sinon.stub(subject, '_getToken').resolves('mytoken');
+  //     // getTokenStub.resolves('mytoken');
+  //     sRapido.prompt.get.yields(undefined, promptResult);
+  //     subject._getOptions(properties, args, sRapido).then(function(options){
+  //       subject._getToken.restore();
+  //       expect(options).to.exist;
+  //       options.should.have.property('url', 'myurl');
+  //       options.should.have.property('org', 'myorg');
+  //       options.should.have.property('token', 'mytoken');
+  //       done();
+  //     });
+  //
+  //   });
+  // });
 
   describe("#_getToken()", function(){
     it("should create new user token", function(){

@@ -57,7 +57,7 @@ InitGithubCommand.prototype.run = function(args, config, rapido) {
       }
       var client = restify.createJsonClient(httpOptions);
 
-      return this._getOrgRepos(client);
+      return this._getOrgRepos(client, options.org);
     })
     .then(function(dependencies){
       return this._updateConfig(options, dependencies, rapido);
@@ -89,12 +89,15 @@ InitGithubCommand.prototype._updateConfig = function(options, dependencies, rapi
   });
 };
 
-InitGithubCommand.prototype._getOrgRepos = function(client){
+InitGithubCommand.prototype._getOrgRepos = function(client, org){
   return new Promise(function(resolve, reject){
-    client.get(path.join('/orgs', options.org, 'repos'), function(err, req, res, projects) {
+    client.get(path.join('/orgs', org, 'repos'), function(err, req, res, projects) {
       if (err) return reject(err);
 
       var dependencies = [];
+      if(projects.constructor !== Array){
+        return reject(new Error('unexpected data response from github: ' + projects));
+      }
       projects.forEach(function(repo) {
         var git_url;
         for (var key in repo) {
@@ -132,7 +135,7 @@ InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
           client = restify.createJsonClient({
             url: args.url,
             headers: {
-              'auth': result.username + ':' + password
+              'auth': result.username + ':' + result.password
             }
           });
         }
