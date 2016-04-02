@@ -5,6 +5,8 @@
         gutil = require('gulp-util'),
         lodash = require('lodash'),
         runSequence = require('run-sequence'),
+        istanbul = require('gulp-istanbul'),
+        del = require('del'),
         paths = {
             scripts: ['commands/**/*.js'],
             tests: ['test/**/*.spec.js']
@@ -19,7 +21,8 @@
         require('chai').use(require('chai-as-promised'));
         require('chai').use(require('sinon-chai'));
         require('sinon-as-promised');
-        // global.chai.use(require('chai-as-promised'));
+
+
 
         return gulp.src(paths.tests, {read: false})
             .pipe(mocha({
@@ -28,6 +31,27 @@
             }));
     });
 
+    gulp.task('pre-test', function(){
+      return gulp.src(paths.scripts)
+        .pipe(istanbul())
+        .pipe(istanbul.hookRequire());
+    });
+
+    gulp.task('code-coverage', function(){
+      return gulp.src(paths.tests)
+        .pipe(istanbul.writeReports({
+          dir: 'dist/reports/coverage'
+        }))
+        .pipe(istanbul.enforceThresholds(
+          {
+            thresholds: {
+              global: {
+                branches: 50
+              }
+            }
+          }));
+    })
+
     gulp.task('lint', function(){
         return gulp.src(paths.scripts.concat(paths.tests))
             .pipe(jshint())
@@ -35,8 +59,12 @@
     });
 
     gulp.task('test', function(done){
-      runSequence('lint', 'mocha', done);
+      runSequence('lint', 'pre-test', 'mocha', 'code-coverage', done);
     });
 
     gulp.task('default', ['test']);
+
+    gulp.task('clean', function(done){
+      del(['dist/*'], done)
+    });
 })();

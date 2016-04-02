@@ -122,6 +122,7 @@ InitGithubCommand.prototype._getOrgRepos = function(client, org){
 };
 
 InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
+  var self = this;
   return new Promise(function(resolve, reject) {
     if (!_.isEmpty(properties) && !(args.yes && args.token)) {
       var prompt = rapido.prompt;
@@ -139,7 +140,7 @@ InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
             }
           });
         }
-        return this._getToken(args, client);
+        return self._getToken(args, client);
       })
       .then(function(token) {
         args.token = token;

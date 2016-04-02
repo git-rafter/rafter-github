@@ -1,13 +1,15 @@
 var restify = require('restify');
 
-describe("init-gulp", function(){
+describe("init-github", function(){
   var subject = require('../../commands/init-github'),
       nock = require('nock');
 
   beforeEach(function(){
+    this.sinon = sinon.sandbox.create();
   });
 
   afterEach(function(){
+    this.sinon.restore();
   });
 
   // describe("#run()", function(){
@@ -33,10 +35,10 @@ describe("init-gulp", function(){
     var sRapido;
     beforeEach(function(){
       sRapido = {
-        updateConfig: sinon.spy(),
+        updateConfig: this.sinon.spy(),
         log: {
-          success: sinon.spy(),
-          info: sinon.spy()
+          success: this.sinon.spy(),
+          info: this.sinon.spy()
         }
       };
     });
@@ -78,7 +80,7 @@ describe("init-gulp", function(){
     var sClient;
     beforeEach(function(){
       sClient = {
-        get: sinon.stub()
+        get: this.sinon.stub()
       };
     });
 
@@ -112,52 +114,58 @@ describe("init-gulp", function(){
     });
   });
 
-  // describe('#_getOptions()', function(){
-  //   var sRapido;
-  //   beforeEach(function(){
-  //     sRapido = {
-  //       prompt: {
-  //         start: sinon.spy(),
-  //         get: sinon.stub()
-  //       }
-  //     };
-  //
-  //   });
-  //
-  //   afterEach(function(){
-  //
-  //   });
-  //
-  //   it('should resolve prompt options with url and org args', function(done){
-  //     var args = {
-  //       url: 'myurl',
-  //       org: 'myorg'
-  //     };
-  //
-  //     var properties = {
-  //       username: {},
-  //       password: {}
-  //     };
-  //
-  //     var promptResult = {
-  //       username: 'username',
-  //       password: 'password'
-  //     };
-  //
-  //     sinon.stub(subject, '_getToken').resolves('mytoken');
-  //     // getTokenStub.resolves('mytoken');
-  //     sRapido.prompt.get.yields(undefined, promptResult);
-  //     subject._getOptions(properties, args, sRapido).then(function(options){
-  //       subject._getToken.restore();
-  //       expect(options).to.exist;
-  //       options.should.have.property('url', 'myurl');
-  //       options.should.have.property('org', 'myorg');
-  //       options.should.have.property('token', 'mytoken');
-  //       done();
-  //     });
-  //
-  //   });
-  // });
+  describe('#_getOptions()', function(){
+    var sRapido, args, properties;
+    beforeEach(function(){
+      sRapido = {
+        prompt: {
+          start: this.sinon.spy(),
+          get: this.sinon.stub()
+        }
+      };
+
+      args = {
+        url: 'myurl',
+        org: 'myorg'
+      };
+
+      properties = {
+        username: {},
+        password: {}
+      };
+
+    });
+
+    it('should resolve prompt options with url and org args', function(done){
+      var promptResult = {
+        username: 'username',
+        password: 'password'
+      };
+
+      this.sinon.stub(subject, '_getToken').resolves('mytoken');
+      sRapido.prompt.get.yields(undefined, promptResult);
+      subject._getOptions(properties, args, sRapido).then(function(options){
+        expect(options).to.exist;
+        options.should.have.property('url', 'myurl');
+        options.should.have.property('org', 'myorg');
+        options.should.have.property('token', 'mytoken');
+        done();
+      });
+
+    });
+
+    it('should reject _getToken', function(){
+      var promptResult = {
+        username: 'username',
+        password: 'password'
+      };
+
+      this.sinon.stub(subject, '_getToken').rejects('unexpected error');
+      sRapido.prompt.get.yields(undefined, promptResult);
+      return subject._getOptions(properties, args, sRapido).should.be.rejected;
+
+    });
+  });
 
   describe("#_getToken()", function(){
     it("should create new user token", function(){
@@ -165,7 +173,7 @@ describe("init-gulp", function(){
         org: 'myorg'
       };
       var stubClient = {
-        post: sinon.stub().yields(undefined, {}, {}, {token: 'mytoken'})
+        post: this.sinon.stub().yields(undefined, {}, {}, {token: 'mytoken'})
       };
       return subject._getToken(options, stubClient).should.eventually.equal('mytoken');
 
@@ -176,7 +184,7 @@ describe("init-gulp", function(){
         org: 'myorg'
       };
       var stubClient = {
-        post: sinon.stub().yields({error: 'thrown error'}, {}, {}, {token: 'mytoken'})
+        post: this.sinon.stub().yields({error: 'thrown error'}, {}, {}, {token: 'mytoken'})
       };
       return subject._getToken(options, stubClient).should.be.rejected;
 
