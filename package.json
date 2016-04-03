@@ -4,6 +4,7 @@
   "description": "Rafter extension for github",
   "main": "index.js",
   "scripts": {
+    "prepublish": "mkdir -p man; for file in doc/*; do node_modules/marked-man/bin/marked-man --section 1 --manual \"Git Repository Manager Manual\" $file > \"man/$(basename ${file%.*}).1\"; done",
     "test": "./node_modules/gulp/bin/gulp.js test"
   },
   "repository": {
@@ -37,6 +38,8 @@
     "istanbul": "^0.4.2",
     "jshint": "^2.9.1",
     "jshint-stylish": "^2.1.0",
+    "marked": "^0.3.5",
+    "marked-man": "^0.1.5",
     "mocha": "^2.4.5",
     "mocha-sinon": "^1.1.5",
     "nock": "^7.7.2",
@@ -44,5 +47,10 @@
     "sinon": "^1.17.3",
     "sinon-as-promised": "^4.0.0",
     "sinon-chai": "^2.8.0"
+  },
+  "directories": {
+    "man": "./man",
+    "doc": "./doc",
+    "lib": "./commands"
   }
 }
