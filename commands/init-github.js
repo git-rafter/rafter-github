@@ -3,8 +3,6 @@ var path = require('path');
 var _ = require('lodash');
 var Promise = require('bluebird');
 
-var GITHUB_URL = 'https://api.github.com';
-
 module.exports = (function(){
   return new InitGithubCommand();
 })();
@@ -34,6 +32,8 @@ function InitGithubCommand(){
 
 }
 
+InitGithubCommand.GITHUB_URL = 'https://api.github.com';
+
 InitGithubCommand.prototype.validate = function(args, rapido) {
   return {
     org: args.org,
@@ -43,10 +43,11 @@ InitGithubCommand.prototype.validate = function(args, rapido) {
 };
 
 InitGithubCommand.prototype.run = function(args, config, rapido) {
+  var self = this;
   return new Promise(function(resolve, reject) {
-    var promptProps = this._createPrompt(args);
+    var promptProps = self._createPrompt(args);
 
-    this._getOptions(promptProps, args, rapido).then(function(options) {
+    return self._getOptions(promptProps, args, rapido).then(function(options) {
       var httpOptions = {
         url: options.url
       };
@@ -57,10 +58,15 @@ InitGithubCommand.prototype.run = function(args, config, rapido) {
       }
       var client = restify.createJsonClient(httpOptions);
 
-      return this._getOrgRepos(client, options.org);
+      return Promise.all([options, self._getOrgRepos(client, options.org)]);
     })
-    .then(function(dependencies){
-      return this._updateConfig(options, dependencies, rapido);
+    .then(function(argv){
+      var options = argv[0];
+      var dependencies = argv[1];
+      return self._updateConfig(options, dependencies, rapido);
+    })
+    .then(function(){
+      resolve();
     })
     .catch(function(err) {
       rapido.log.error(err);
@@ -129,7 +135,7 @@ InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
       prompt.start();
       var promptGet = Promise.promisify(prompt.get);
       promptGet(properties).then(function(result) {
-        args.url = args.url || result.url || GITHUB_URL;
+        args.url = args.url || result.url || InitGithubCommand.GITHUB_URL;
         args.org = args.org || result.org;
         var client;
         if(result.username && result.password && !args.token) {
@@ -150,7 +156,7 @@ InitGithubCommand.prototype._getOptions = function(properties, args, rapido) {
         reject(err);
       });
     } else {
-      args.url = args.url || GITHUB_URL;
+      args.url = args.url || InitGithubCommand.GITHUB_URL;
       resolve(args);
     }
   });
@@ -183,7 +189,7 @@ InitGithubCommand.prototype._createPrompt = function(args) {
     promptProps.properties.url = {
       description: 'Github API Url',
       required: false,
-      default: GITHUB_URL
+      default: InitGithubCommand.GITHUB_URL
     };
   }
 

@@ -1,7 +1,8 @@
 var restify = require('restify');
 
 describe("init-github", function(){
-  var subject = require('../../commands/init-github'),
+  var InitGithubCommand = require('../../commands/init-github').InitGithubCommand,
+      subject = new InitGithubCommand(),
       nock = require('nock');
 
   beforeEach(function(){
@@ -12,24 +13,63 @@ describe("init-github", function(){
     this.sinon.restore();
   });
 
-  // describe("#run()", function(){
-  //   it("should init github", function(){
-  //     var postAuth = nock('https://api.github.com')
-  //       .post('/authorizations', '*')
-  //       .reply(201, {token: 'mytoken'});
-  //     var getRepos = nock('https://api.github.com')
-  //       .get('/orgs/*/repos')
-  //       .reply(200, [
-  //         {name: 'repo1', description: 'my repo', ssh_url: 'git@github.com/myorg/repo1.git'}
-  //       ]);
-  //
-  //     var args = {
-  //       org: 'myorg',
-  //
-  //     }
-  //
-  //   });
-  // });
+  describe("#run()", function(){
+    it("should init github", function(){
+      var promptProps = {
+        properties: {
+          url: 'myurl'
+        }
+      };
+
+      var options = {
+        url: 'myurl',
+        token: 'mytoken',
+        org: 'myorg'
+      };
+
+      var dependencies = [{
+        name: 'some dependency',
+        url: 'git@repo.git',
+        description: 'my description'
+      }];
+
+      var rapido = {
+        log: {
+          error: this.sinon.stub()
+        }
+      };
+
+      this.sinon.stub(subject, '_createPrompt').returns(promptProps);
+      this.sinon.stub(subject, '_getOptions').resolves(options);
+      this.sinon.stub(subject, '_getOrgRepos').resolves(dependencies);
+      this.sinon.stub(subject, '_updateConfig').resolves(undefined);
+
+      return subject.run({}, {}, rapido).should.be.fulfilled;
+    });
+
+    it("should reject getOptions", function(done){
+      var promptProps = {
+        properties: {
+          url: 'myurl'
+        }
+      };
+
+      var rapido = {
+        log: {
+          error: this.sinon.spy()
+        }
+      };
+
+      this.sinon.stub(subject, '_createPrompt').returns(promptProps);
+      this.sinon.stub(subject, '_getOptions').rejects(new Error('my error'));
+
+      subject.run({}, {}, rapido).catch(function(err){
+        assert(rapido.log.error.calledOnce, 'failed to log error');
+        expect(err).to.be.defined;
+        done();
+      });
+    });
+  });
 
   describe('#_updateConfig()', function(){
     var sRapido;
@@ -165,6 +205,13 @@ describe("init-github", function(){
       return subject._getOptions(properties, args, sRapido).should.be.rejected;
 
     });
+
+    it('should not prompt and resolve options', function(done){
+      return subject._getOptions(properties, {token: 'mytoken', yes: true}, sRapido).then(function(options){
+        options.should.have.property('url', InitGithubCommand.GITHUB_URL);
+        done();
+      });
+    });
   });
 
   describe("#_getToken()", function(){
@@ -197,6 +244,47 @@ describe("init-github", function(){
       };
       var promise = subject._getToken(options, undefined);
       return promise.should.eventually.equal('mytoken');
+    });
+  });
+
+  describe("#_createPrompt()", function(){
+    it("should prompt url", function(){
+      var args = {
+        org: 'myorg',
+        token: 'mytoken',
+      };
+
+      subject._createPrompt(args).should.have.deep.property('properties.url');
+      subject._createPrompt(args).should.not.have.deep.property('properties.org');
+      subject._createPrompt(args).should.not.have.deep.property('properties.username');
+      subject._createPrompt(args).should.not.have.deep.property('properties.password');
+
+    });
+
+    it("should prompt org", function(){
+      var args = {
+        url: 'myurl',
+        token: 'mytoken',
+      };
+
+      subject._createPrompt(args).should.have.deep.property('properties.org');
+      subject._createPrompt(args).should.not.have.deep.property('properties.url');
+      subject._createPrompt(args).should.not.have.deep.property('properties.username');
+      subject._createPrompt(args).should.not.have.deep.property('properties.password');
+
+    });
+
+    it("should prompt username and password", function(){
+      var args = {
+        url: 'myurl',
+        org: 'myorg'
+      };
+
+      subject._createPrompt(args).should.not.have.deep.property('properties.org');
+      subject._createPrompt(args).should.not.have.deep.property('properties.url');
+      subject._createPrompt(args).should.have.deep.property('properties.username');
+      subject._createPrompt(args).should.have.deep.property('properties.password');
+
     });
   });
 });
